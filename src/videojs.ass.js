@@ -4,8 +4,11 @@
 
 (function (videojs, libjass) {
   'use strict';
-
-  var vjs_ass = function (options) {
+  var seasubtitle
+  var vjs_ass = function (options,seasubtitle) {
+    // console.log('++++获取字幕参数')
+    // console.log(options)
+    seasubtitle=seasubtitle
     var cur_id = 0,
       id_count = 0,
       overlay = document.createElement('div'),
@@ -109,23 +112,85 @@
       }
     })
 
-    rendererSettings = new libjass.renderers.RendererSettings();
-    libjass.ASS.fromUrl(options.src, libjass.Format.ASS).then(
-      function (ass) {
-        if (options.hasOwnProperty('enableSvg')) {
-          rendererSettings.enableSvg = options.enableSvg;
-        }
-        if (options.hasOwnProperty('fontMap')) {
-          rendererSettings.fontMap = new libjass.Map(options.fontMap);
-        } else if (options.hasOwnProperty('fontMapById')) {
-          rendererSettings.fontMap = libjass.renderers.RendererSettings
-            .makeFontMapFromStyleElement(document.getElementById(options.fontMapById));
-        }
 
-        addTrack(options.src, { label: options.label, srclang: options.srclang, switchImmediately: true });
-        renderers[cur_id] = new libjass.renderers.WebRenderer(ass, clocks[cur_id], overlay, rendererSettings);
+    function samuredDecoder(source) {
+      if (source) {
+        var lenth = source.replace(/(\d{1})(\S+)/, '$1')
+        var realSource = source.replace(/(\d{1})(\S+)/, '$2');
+        var decode1 = byteToString(URLSafeBase64.decode(realSource)).replace(new RegExp('(\\S+)(\\d{' + lenth + '})'), '$1')
+        return byteToString(URLSafeBase64.decode(decode1)).replace(new RegExp('(\\d{' + lenth + '})(\\S+)'), '$2');
       }
-    );
+      return '';
+    };
+    function byteToString(arr) {  
+        if(typeof arr === 'string') {  
+            return arr;  
+        }  
+        var str = '',  
+        _arr = arr;  
+        for(var i = 0; i < _arr.length; i++) {  
+            var one = _arr[i].toString(2),  
+                v = one.match(/^1+?(?=0)/);  
+            if(v && one.length == 8) {  
+                var bytesLength = v[0].length;  
+                var store = _arr[i].toString(2).slice(7 - bytesLength);  
+                for(var st = 1; st < bytesLength; st++) {  
+                    store += _arr[st + i].toString(2).slice(2);  
+                }  
+                str += String.fromCharCode(parseInt(store, 2));  
+                i += bytesLength - 1;  
+            } else {  
+                str += String.fromCharCode(_arr[i]);  
+            }  
+        }  
+        return str;  
+    };
+
+
+
+
+    rendererSettings = new libjass.renderers.RendererSettings();
+
+    var base = samuredDecoder(seasubtitle)
+      //var base=URLSafeBase64.decode(this.baseUrl)
+    libjass.ASS.fromString(base, libjass.Format.ASS).then((ass)=>{
+      //console.log('++++获取请求字幕结果11111111111111111111')
+      //console.dir(ass)
+      if (options.hasOwnProperty('enableSvg')) {
+        rendererSettings.enableSvg = options.enableSvg;
+      }
+      if (options.hasOwnProperty('fontMap')) {
+        rendererSettings.fontMap = new libjass.Map(options.fontMap);
+      } else if (options.hasOwnProperty('fontMapById')) {
+        rendererSettings.fontMap = libjass.renderers.RendererSettings
+          .makeFontMapFromStyleElement(document.getElementById(options.fontMapById));
+      }
+
+      addTrack(options.src, { label: options.label, srclang: options.srclang, switchImmediately: true });
+      renderers[cur_id] = new libjass.renderers.WebRenderer(ass, clocks[cur_id], overlay, rendererSettings);
+    })
+    //console.log(22222222222)
+
+
+
+    // libjass.ASS.fromUrl(options.src, libjass.Format.ASS).then(
+    //   function (ass) {
+    //     console.log('++++获取请求字幕结果')
+    //     console.log(ass)
+    //     if (options.hasOwnProperty('enableSvg')) {
+    //       rendererSettings.enableSvg = options.enableSvg;
+    //     }
+    //     if (options.hasOwnProperty('fontMap')) {
+    //       rendererSettings.fontMap = new libjass.Map(options.fontMap);
+    //     } else if (options.hasOwnProperty('fontMapById')) {
+    //       rendererSettings.fontMap = libjass.renderers.RendererSettings
+    //         .makeFontMapFromStyleElement(document.getElementById(options.fontMapById));
+    //     }
+
+    //     addTrack(options.src, { label: options.label, srclang: options.srclang, switchImmediately: true });
+    //     renderers[cur_id] = new libjass.renderers.WebRenderer(ass, clocks[cur_id], overlay, rendererSettings);
+    //   }
+    // );
 
     function addTrack(url, opts) {
       var newTrack = player.addRemoteTextTrack({
@@ -183,6 +248,7 @@
       Experimental API use at your own risk!!
     */
     function loadNewSubtitle(url, label, srclang, switchImmediately) {
+      //console.log(url)
       var old_id = cur_id;
       if (switchImmediately) {
         renderers[cur_id]._removeAllSubs();
